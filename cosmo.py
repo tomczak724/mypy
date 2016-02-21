@@ -1,6 +1,83 @@
 
 import numpy
 
+import numpy as np
+import astLib as al
+from astLib import astCalc as ac
+
+from astropy import cosmology
+
+
+
+
+
+######################################
+#######  SET COSMO-PARMS HERE  #######
+######################################
+
+H0        = 70.0   #  Hubble constant
+OMEGA_M0  = 0.30   #  Matter density
+OMEGA_L   = 0.70   #  Dark energy density
+C_LIGHT   = 2.99792e+05   #  Speed of light
+
+######################################
+#######  SET COSMO-PARMS HERE  #######
+######################################
+
+
+
+
+def dhubble(H0=70):
+    """
+    #  Returns the Hubble distance in pc:
+    #  Eq. 4 of Hogg (2000)
+    """
+    dh = C_LIGHT / H0
+    return dh * 10**6
+
+
+
+
+def vcomoving(z):
+    """
+    #  Total (all-sky) comoving volume to redshift z in pc**3.
+    #  Derived from Eq. 29 of Hogg (2000).
+    #
+    #  NOTE: This script was derived directly from the
+    #  vcomoving.pro script from the IDL "red" library
+    """
+    omega_k = 1.0 - OMEGA_M0 - OMEGA_L   # CURVATURE PARAMETER
+    dh = dhubble()
+    dm = ac.dm(z) * 10**6   # TRANSVERSE COMOVING DIST (pc)
+    
+    if omega_k==0: vc = 4*np.pi/3 * dm**3
+    else: raise ValueError('Script not equipped for nonzero cosmic curvature')
+
+    return vc
+
+
+
+def vcomoving_slice( fov, zlo, zhi ):
+    """
+    #  Returns the integrated comoving volume for a survey
+    #  of area fov between (zlo, zhi) in Mpc**3
+    #
+    #  INPUTS:
+    #     zlo, zhi = redshift limits
+    #     fov      = FOV of survey in arcmin**2
+    """
+
+    amin2ster = (60./206264.8)*(60./206264.8)
+    v = (vcomoving(zhi) - vcomoving(zlo))/4/np.pi/(10**6)**3
+
+    return v  *  fov*amin2ster
+
+
+
+
+
+
+
 
 def radec_sep(ra1, dec1, ra2, dec2):
     """

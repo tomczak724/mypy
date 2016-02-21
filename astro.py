@@ -1,9 +1,7 @@
 import os
-import itertools
 import pylab as pl
 import numpy as np
 import pyfits as pf
-from mypy import sps
 import subprocess as sp
 import matplotlib as mpl
 from scipy import interpolate
@@ -11,15 +9,8 @@ from scipy import optimize as opt
 
 c = 2.99792458e18  # Ang / s
 
-vega = pl.loadtxt( '/Users/atomczak/pydir/mypy/vega.dat')
 
-filter_u = np.loadtxt('/Users/atomczak/pydir/mypy/bessell_U.dat')
-filter_v = np.loadtxt('/Users/atomczak/pydir/mypy/bessell_V.dat')
-filter_j = np.loadtxt('/Users/atomczak/pydir/mypy/twomass_J.dat')
-
-
-
-def synphot( spec, filter, splineinterp=1 ):
+def synphot(spec, filter, splineinterp=1):
     """
     #  Basic script to measure integrated flux from
     #  a given spectrum in a given bandpass/filter.
@@ -32,22 +23,22 @@ def synphot( spec, filter, splineinterp=1 ):
     #  curve will be subsampled by the factor splineinterp
     #  using a spline interpolation.
     """
-    if splineinterp>1:
-        lamax = pl.linspace( filter[0][0], filter[-1][0], int(len(filter)*splineinterp) )
+    if splineinterp > 1:
+        lamax = np.linspace( filter[0][0], filter[-1][0], int(len(filter)*splineinterp) )
         trans = interpolate.spline( filter[:,0], filter[:,1], lamax )
-        filter = pl.array( zip(lamax,trans) )
+        filter = np.array( zip(lamax,trans) )
         
-    filter_normed = filter
-    filter_normed[:,1] /= pl.trapz( filter[:,1], filter[:,0] )
+    filter_normed = filter * 1.
+    filter_normed[:,1] /= np.trapz( filter[:,1], filter[:,0] )
 
-    fconvolved = filter_normed[:,1] * pl.interp( filter_normed[:,0], spec[:,0], spec[:,1] )
+    fconvolved = filter_normed[:,1] * np.interp( filter_normed[:,0], spec[:,0], spec[:,1] )
 
-    return pl.trapz( fconvolved, filter_normed[:,0] )
-
-
+    return np.trapz( fconvolved, filter_normed[:,0] )
 
 
-def uvj_select( uv, vj, z ):
+
+
+def uvj_select(uv, vj, z):
     """
     #  INPUT:
     #    uv  --->  Restframe (U-V) color (in AB system)  [array]
@@ -65,27 +56,27 @@ def uvj_select( uv, vj, z ):
     if type(uv)==list or type(uv)==float or type(uv)==int or type(uv)==long or type(uv)==np.float64: uv = np.array(uv)
     if type(vj)==list or type(vj)==float or type(vj)==int or type(vj)==long or type(vj)==np.float64: vj = np.array(vj)
 
-    floor = pl.zeros(len(z))
-    wall = pl.zeros(len(z))
-    slope = pl.zeros(len(z))
-    intercept = pl.zeros(len(z))
+    floor = np.zeros(len(z))
+    wall = np.zeros(len(z))
+    slope = np.zeros(len(z))
+    intercept = np.zeros(len(z))
 
-    floor[ pl.where( (0.0<=z) & (z<1.5) ) ] = 1.3
-    floor[ pl.where( (1.5<=z) & (z<2.0) ) ] = 1.3
-    floor[ pl.where( (2.0<=z) ) ] = 1.2
+    floor[ np.where( (0.0<=z) & (z<1.5) ) ] = 1.3
+    floor[ np.where( (1.5<=z) & (z<2.0) ) ] = 1.3
+    floor[ np.where( (2.0<=z) ) ] = 1.2
 
-    wall[ pl.where( (0.0<=z) & (z<1.5) ) ] = 1.6
-    wall[ pl.where( (1.5<=z) & (z<2.0) ) ] = 1.5
-    wall[ pl.where( (2.0<=z) ) ] = 1.4
+    wall[ np.where( (0.0<=z) & (z<1.5) ) ] = 1.6
+    wall[ np.where( (1.5<=z) & (z<2.0) ) ] = 1.5
+    wall[ np.where( (2.0<=z) ) ] = 1.4
 
-    slope[ pl.where( z<0.5 ) ] = 0.88
-    slope[ pl.where( 0.5<=z ) ] = 0.88
+    slope[ np.where( z<0.5 ) ] = 0.88
+    slope[ np.where( 0.5<=z ) ] = 0.88
 
-    intercept[ pl.where( z<0.5 ) ] = 0.69
-    intercept[ pl.where( 0.5<=z ) ] = 0.59
+    intercept[ np.where( z<0.5 ) ] = 0.69
+    intercept[ np.where( 0.5<=z ) ] = 0.59
 
-    outer = pl.zeros(len(z))
-    outer[ pl.where( (uv<slope*vj+intercept) | (uv<floor) | (vj>wall) )[0] ] = 1
+    outer = np.zeros(len(z))
+    outer[ np.where( (uv<slope*vj+intercept) | (uv<floor) | (vj>wall) )[0] ] = 1
     return outer
 
 
@@ -260,10 +251,30 @@ def centroid( image, x, y, fwhm, sky=0 ):
 
 ###  Done! Now to spit it out.
     if len(xout)==1: return xout[0], yout[0]
-    else: return pl.array(zip(xout, yout))
+    else: return np.array(zip(xout, yout))
 
 
 
+def progress(n, ntot, percent=10):
+    """
+    #  If n is an integer percentage in units of
+    #  "percent" then will print to the screen.
+    #
+    #  EXAMPLES:
+    #
+    #  >>> progress(2, 8, 25)
+    #  >>>   PROGRESS: 25 %
+    #  >>>
+    #  >>> progress(3, 8, 25)
+    #  >>> progress(4, 8, 25)
+    #  >>>   PROGRESS: 50 %
+    """
+    ratio = n * 100. / ntot
+    prog_array = np.arange(int(ntot * percent / 100.), ntot+1, int(ntot * percent / 100.))
+    if int(n) in prog_array:
+        return (1, " PROGRESS: " + str(int(ratio+0.5)) + " %")
+    else:
+        return (0, " PROGRESS: " + str(int(ratio+0.5)) + " %")
 
 
 
@@ -287,25 +298,87 @@ def get_lambda(frequency):
 
 
 
-res = sps.read_res('/Users/atomczak/DATA/ZFOURGE/zfourge_release_v2.0/catalogs/new.res')
+
+class res_filter:
+    def __init__(self, header):
+        self.header = header
+        self.data = []
+        self.lams = []
+        self.trans = []
+
+
+def read_res(res):
+    '''
+    #  Outputs the filter transmission curves from
+    #  a *.res file commonly used with EAZY/FAST
+    #
+    #  res --- full path name to the *.res file
+    #
+    #  EXAMPLE:
+    #    >>> res = '../Filters/FILTER.RES.v6.R300'
+    #    >>> mypy.sps.read_filter_from_res(10, res)
+    #    array([[ 2.31000e+03   0.00000e+00],
+    #           [ 2.31500e+03   0.00000e+00],
+    #              ...
+    #           [ 9.34500e+03   0.00000e+00],
+    #           [ 9.35000e+03   0.00000e+00]])
+    '''
+
+    dat = open(res, 'r')
+    lines = dat.readlines()
+
+    filters = []
+
+    line0 = lines[0]
+    n = int(line0.split()[0])
+    filters.append(res_filter(line0))
+
+    cnt = 0
+    for line in lines[1:]:
+        
+        if cnt < n:
+            cnt, lam, tran = line.split()
+            cnt = int(cnt)
+            lam = float(lam)
+            tran = float(tran)
+            filters[-1].data.append([lam, tran])
+            filters[-1].lams.append(lam)
+            filters[-1].trans.append(tran)
+
+        else:
+            cnt = 0
+            n = int(line.split()[0])
+            filters[-1].data = np.array(filters[-1].data)
+            filters[-1].lams = np.array(filters[-1].lams)
+            filters[-1].trans = np.array(filters[-1].trans)
+            filters.append(res_filter(line))
+
+    filters[-1].data = np.array(filters[-1].data)
+    filters[-1].lams = np.array(filters[-1].lams)
+    filters[-1].trans = np.array(filters[-1].trans)
+    dat.close()
+    
+    return filters
+
+
+
+res = read_res('%s/data/filters.res' % os.getcwd())
 v_band = res[141]
 
-vega_lam = pl.loadtxt('/Users/atomczak/pydir/mypy/vega.dat')
-vega_nu = vega_lam * 1.
-vega_nu[:,1] *= vega_nu[:,0]**2 / (2.9979e18)
+vega = np.loadtxt('%s/data/vega.dat' % os.getcwd())
 
-ab_nu = pl.array(zip(vega_nu[:,0], pl.zeros(len(vega_nu)) + synphot(vega_nu, v_band.data)))
+ab_nu = np.array(zip(vega[:,0], np.zeros(len(vega)) + synphot(vega, v_band.data)))
 
 def vega2ab(filt):
     '''
     #  Returns the (AB-Vega) for a given filter.
     #
-    #  filt = pl.array([lam_1, trans_1],
+    #  filt = np.array([lam_1, trans_1],
     #                   lam_2, trans_2],
     #                      ...
     #                   lam_n, trans_n]])
     '''
     f_vega = synphot(vega_nu, filt)
     f_ab = synphot(ab_nu, filt)
-    return 2.5 * pl.log10(f_ab / f_vega)
+    return 2.5 * np.log10(f_ab / f_vega)
 
