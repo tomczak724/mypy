@@ -17,6 +17,13 @@ using namespace std;
 #define BUFFSIZE 8192
 
 
+////  Definitions
+string field_name = "sg0023+0423";
+string version = "v0.0.1";
+
+string base_dir = "/Volumes/PHOENIX/atomczak/DATA/ORELSE/catalogs/v001/Cl_0023+0423/";
+
+
 
 
 //// Count the number of readable rows and
@@ -104,30 +111,53 @@ void readdata(string CATALOG_FILE, double *catalog[nobj]) {
 
 int main()
 {
+    ////  counting rows and columns and initializing 2d array
+    cout <<  endl << "reading in catalogs..." << endl;
+    count_nobj_ncol(base_dir + "images/sextractor/catalog_B.cat");
 
-	double MW_extinction_mag[9] = {0.078, 0.056, 0.049, 0.036, 0.049, 0.036, 0.027, 0.015, 0.006};
+	cout << endl << field_name << '_' << version << endl << endl;
 
 
-	double MW_extinction_scale[9];
-	for(int i=0; i<9; i++) {
-		MW_extinction_scale[i] = pow(10, MW_extinction_mag[i] / 2.5);
-	}
-
-	string a = "hello";
-	string b = "again";
-	fprintf(stderr, "%s world %s!\n", a.c_str(), b.c_str());
+	string asdf = field_name + "_" + version;
+	cout << asdf << endl << endl;
 
 
 
+	// an array containing nobj pointers
+    double *catalog_B[nobj];
+    double *catalog_V[nobj];
+    double *catalog_Rsup[nobj];
+    double *catalog_Isup[nobj];
+    double *catalog_r[nobj];
+    double *catalog_i[nobj];
+    double *catalog_z[nobj];
+    double *catalog_J[nobj];
+    double *catalog_K[nobj];
+    for(int i = 0; i < nobj; i++){
+        catalog_B[i] = new double[ncol];
+        catalog_V[i] = new double[ncol];
+        catalog_Rsup[i] = new double[ncol];
+        catalog_Isup[i] = new double[ncol];
+        catalog_r[i] = new double[ncol];
+        catalog_i[i] = new double[ncol];
+        catalog_z[i] = new double[ncol];
+        catalog_J[i] = new double[ncol];
+        catalog_K[i] = new double[ncol];
+    }
 
+    double *catalogs[9] = {*catalog_B, 
+    	                   *catalog_V, 
+    	                   *catalog_Rsup, 
+    	                   *catalog_Isup, 
+    	                   *catalog_r, 
+    	                   *catalog_i, 
+    	                   *catalog_z, 
+    	                   *catalog_J, 
+    	                   *catalog_K};
 
+    readdata(base_dir + "images/sextractor/catalog_B.cat", catalog_B);
 
-
-
-
-
-
-
+    cout << catalogs << endl;
 
 
 }

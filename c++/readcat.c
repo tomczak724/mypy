@@ -21,6 +21,7 @@ using namespace std;
 string field_name = "sg0023+0423";
 string version = "v0.0.1";
 
+string base_dir = "/Volumes/PHOENIX/atomczak/DATA/ORELSE/catalogs/v001/Cl_0023+0423/";
 
 
 
@@ -112,7 +113,7 @@ int main()
 
     ////  counting rows and columns and initializing 2d array
     cout <<  endl << "reading in catalogs..." << endl;
-    count_nobj_ncol("./catalogs/catalog_B.cat");
+    count_nobj_ncol(base_dir + "images/sextractor/catalog_B.cat");
 
     double *catalog_B[nobj];
     double *catalog_V[nobj];
@@ -135,15 +136,15 @@ int main()
         catalog_K[i] = new double[ncol];
     }
 
-    readdata("./catalogs/catalog_B.cat", catalog_B);
-    readdata("./catalogs/catalog_B.cat", catalog_V);
-    readdata("./catalogs/catalog_B.cat", catalog_Rsup);
-    readdata("./catalogs/catalog_B.cat", catalog_Isup);
-    readdata("./catalogs/catalog_B.cat", catalog_r);
-    readdata("./catalogs/catalog_B.cat", catalog_i);
-    readdata("./catalogs/catalog_B.cat", catalog_z);
-    readdata("./catalogs/catalog_B.cat", catalog_J);
-    readdata("./catalogs/catalog_B.cat", catalog_K);
+    readdata(base_dir + "images/sextractor/catalog_B.cat", catalog_B);
+    readdata(base_dir + "images/sextractor/catalog_V.cat", catalog_V);
+    readdata(base_dir + "images/sextractor/catalog_Rsup.cat", catalog_Rsup);
+    readdata(base_dir + "images/sextractor/catalog_Isup.cat", catalog_Isup);
+    readdata(base_dir + "images/sextractor/catalog_r.cat", catalog_r);
+    readdata(base_dir + "images/sextractor/catalog_i.cat", catalog_i);
+    readdata(base_dir + "images/sextractor/catalog_z.cat", catalog_z);
+    readdata(base_dir + "images/sextractor/catalog_J.cat", catalog_J);
+    readdata(base_dir + "images/sextractor/catalog_K.cat", catalog_K);
     cout << "done!" << endl << endl;
 
 
@@ -198,13 +199,21 @@ int main()
     fluxCatalogFile << "fluxaper_z erraper_z ";
     fluxCatalogFile << "fluxaper_J erraper_J ";
     fluxCatalogFile << "fluxaper_K erraper_K ";
-
+    fluxCatalogFile << "\n";
 
     magCatalogFile << "# id z_spec x y ra dec ";
     magCatalogFile << "magaper_B erraper_B ";
+    magCatalogFile << "magaper_V erraper_V ";
+    magCatalogFile << "magaper_Rsup erraper_Rsup ";
+    magCatalogFile << "magaper_Isup erraper_Isup ";
+    magCatalogFile << "magaper_r erraper_r ";
+    magCatalogFile << "magaper_i erraper_i ";
+    magCatalogFile << "magaper_z erraper_z ";
+    magCatalogFile << "magaper_J erraper_J ";
+    magCatalogFile << "magaper_K erraper_K ";
+    magCatalogFile << "\n";
 
     zspecFluxCatalogFile << "# id z_spec x y ra dec ";
-    zspecFluxCatalogFile << "fluxaper_B erraper_B ";
     zspecFluxCatalogFile << "fluxaper_B erraper_B ";
     zspecFluxCatalogFile << "fluxaper_V erraper_V ";
     zspecFluxCatalogFile << "fluxaper_Rsup erraper_Rsup ";
@@ -214,6 +223,16 @@ int main()
     zspecFluxCatalogFile << "fluxaper_z erraper_z ";
     zspecFluxCatalogFile << "fluxaper_J erraper_J ";
     zspecFluxCatalogFile << "fluxaper_K erraper_K ";
+    zspecFluxCatalogFile << "\n";
+
+
+    for(int i=0; i<nobj; i++) {
+
+    	for(int filter_i=0; filter_i<n_filters; filter_i++) {
+    		pass;
+    	}
+
+    }
 
 
 
