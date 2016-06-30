@@ -5,9 +5,12 @@ import numpy
 from matplotlib import pyplot
 
 
+inspector_name = raw_input('\n\tEnter you last name: ')
+output_file_name = 'visual_inspection_%s.txt' % inspector_name
+output_file = open(output_file_name, 'w')
+
+
 mugshots = glob.glob('./data/mugshot*png')
-
-
 
 
 
@@ -30,11 +33,15 @@ bottom_offset = 0.06
 
 
 buttons = []
-button_names = ['all good', 'missed star', 'bad fit', 'other']
+button_names = ['all_good', 'missed_star', 'bad_fit', 'other']
 button_colors = ['lime', 'orange', 'red', 'gray']
 
+output_file.write('# id')
+for bname in button_names:
+	output_file.write(' %s' % bname)
+
 for bi in range(len(button_names)):
-	buttons.append(subplot.figure.add_axes([(bi+1)*gap+bi*button_width, bottom_offset, button_width, button_height], label=button_names[bi]))
+	buttons.append(subplot.figure.add_axes([(bi+1)*gap+bi*button_width, bottom_offset, button_width, button_height], axisbg='w', label=button_names[bi]))
 	buttons[-1].patch.set_facecolor(button_colors[bi])
 	buttons[-1].patch.set_alpha(0.6)
 	buttons[-1].xaxis.set_visible(0)
@@ -57,7 +64,7 @@ def onclick(event):
 
 	clicked_subplot = event.inaxes.get_label()
 
-	button_flags = numpy.zeros(len(buttons))
+	button_flags = numpy.zeros(len(buttons), dtype=int)
 	if clicked_subplot in button_names:
 		
 		button_flags[button_names.index(clicked_subplot)] += 1
@@ -65,14 +72,24 @@ def onclick(event):
 		field = mugshots[i_gal].split('_')[1]
 		galaxy_id = int(mugshots[i_gal].split('_')[0].split('mugshot')[1])
 
-		print field, galaxy_id
+		output_file.write('\n%7i ' % galaxy_id)
+		for flag in button_flags:
+			output_file.write(' %i' % flag)
+
 
 
 
 
 		i_gal += 1
 		if i_gal >= len(mugshots):
+			subplot.text(0.5, 0.5, '\n  Thanks for your time!    \n', transform=subplot.transAxes, fontsize=35, fontweight='bold', verticalalignment='center', horizontalalignment='center', bbox={'facecolor':'w', 'linewidth':3})
+			pyplot.draw()
+			time.sleep(4)
+
 			pyplot.close()
+			output_file.write('\n')
+			output_file.close()
+			print '\n\n\twrote to: %s\n' % output_file_name
 		else:
 			redraw(i_gal)
 
