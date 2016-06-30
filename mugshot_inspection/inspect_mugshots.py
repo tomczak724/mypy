@@ -3,34 +3,36 @@ import glob
 import time
 import numpy
 from matplotlib import pyplot
+import matplotlib.patheffects as PathEffects
 
 
+###  Enter your name
 inspector_name = raw_input('\n\tEnter you last name: ')
 output_file_name = 'visual_inspection_%s.txt' % inspector_name
 output_file = open(output_file_name, 'w')
 
 
+
+###  Grabbing mugshot files
 mugshots = glob.glob('./data/mugshot*png')
 
 
 
-
-
-fig = pyplot.figure(figsize=(11.0625, 10.775))
+###  Initializing interactive figure
+fig = pyplot.figure(figsize=(9.1875, 8.875))
 subplot = fig.add_subplot(111, label='subplot')
 fig.subplots_adjust(left=0., top=1., right=1., bottom=0.)
 subplot.xaxis.set_visible(0)
 subplot.yaxis.set_visible(0)
+subplot.axhline(0, color='gray', lw=1.5)
+subplot.axis([-0.5, 1088.5, -180, 890.5])
 
-###  prepping the canvas
-subplot.axis([-0.5, 1088.5, -150, 890.5])
 
-
+###  Spacing paramters for buttons
 gap = 0.06
 button_width = (1. - 5*gap) / 4.
 button_height = 0.06
-bottom_offset = 0.06
-
+bottom_offset = 0.04
 
 buttons = []
 button_names = ['all_good', 'missed_star', 'bad_fit', 'other']
@@ -40,6 +42,8 @@ output_file.write('# id')
 for bname in button_names:
 	output_file.write(' %s' % bname)
 
+
+###  Adding buttions to plot window
 for bi in range(len(button_names)):
 	buttons.append(subplot.figure.add_axes([(bi+1)*gap+bi*button_width, bottom_offset, button_width, button_height], axisbg='w', label=button_names[bi]))
 	buttons[-1].patch.set_facecolor(button_colors[bi])
@@ -51,20 +55,28 @@ for bi in range(len(button_names)):
 
 
 
-
-image_data = pyplot.imread(mugshots[0])
-subplot.imshow(image_data[::-1])
-
-
-
-
+###  Plotting first mugshot
 i_gal = 0
+image_data = pyplot.imread(mugshots[i_gal])
+image_graphics = subplot.imshow(image_data[::-1])
+
+progress_text = subplot.text(0.03, bottom_offset + 1.3*button_height, 'Progress:  1 / %i' % len(mugshots), 
+	                         transform=subplot.transAxes, color='gray', fontsize=16,
+	                         path_effects=[PathEffects.withStroke(linewidth=2., foreground='k')])
+
+
+
+###  This script gets executed every time you click somewhere in the plot window
 def onclick(event):
 	global i_gal
+	button_flags = numpy.zeros(len(buttons), dtype=int)
 
+
+	###  grab the name of which subplot was clicked
 	clicked_subplot = event.inaxes.get_label()
 
-	button_flags = numpy.zeros(len(buttons), dtype=int)
+
+	###  if the subplot is one of the buttons, do this
 	if clicked_subplot in button_names:
 		
 		button_flags[button_names.index(clicked_subplot)] += 1
@@ -72,17 +84,15 @@ def onclick(event):
 		field = mugshots[i_gal].split('_')[1]
 		galaxy_id = int(mugshots[i_gal].split('_')[0].split('mugshot')[1])
 
+		###  write the parameters to the output file
 		output_file.write('\n%7i ' % galaxy_id)
 		for flag in button_flags:
 			output_file.write(' %i' % flag)
 
-
-
-
-
+		###  increment by +1 and plot the next mugshot, or quit if no more left
 		i_gal += 1
 		if i_gal >= len(mugshots):
-			subplot.text(0.5, 0.5, '\n  Thanks for your time!    \n', transform=subplot.transAxes, fontsize=35, fontweight='bold', verticalalignment='center', horizontalalignment='center', bbox={'facecolor':'w', 'linewidth':3})
+			subplot.text(0.5, 0.5, '\n  Thanks for your time!                               \n', transform=subplot.transAxes, fontsize=35, fontweight='bold', verticalalignment='center', horizontalalignment='center', bbox={'facecolor':'#ffff80', 'linewidth':3})
 			pyplot.draw()
 			time.sleep(4)
 
@@ -94,129 +104,17 @@ def onclick(event):
 			redraw(i_gal)
 
 
+###  script to plot the next mugshot
 def redraw(i):
+	progress_text.set_text('Progress:  %i / %i' % (i+1, len(mugshots)))
 	image_data = pyplot.imread(mugshots[i])
-	subplot.imshow(image_data[::-1])
+	image_graphics.set_data(image_data[::-1])
 	pyplot.draw()
 
 
-
-
+###  IMPORTANT --- this initiates a connection between the plot window and the onclick() script
 cid = fig.canvas.mpl_connect('button_press_event', onclick)
-
-
-
 pyplot.show()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-'''
-
-class clickabel_window:
-
-	def __init__(self):
-		
-		self.fig = pyplot.figure(figsize=(11.0625, 10.775))
-		self.subplot = self.fig.add_subplot(111)
-		self.fig.subplots_adjust(left=0., top=1., right=1., bottom=0.15)
-		self.subplot.xaxis.set_visible(0)
-		self.subplot.yaxis.set_visible(0)
-
-		self.fig.canvas.mpl_connect('button_press_event', self.onclick)
-
-
-	def display_image_data(self, image_display, image_data):
-		image_display.set_data(image_data)
-
-
-	def onclick(self, event):
-		x = event.xdata
-		y = event.ydata
-		print x, y
-
-
-
-
-mugshots = glob.glob('./data/mugshot*png')
-
-
-gui = clickabel_window()
-
-
-for i, mugshot in enumerate(mugshots):
-
-	image_data = pyplot.imread(mugshot)
-	if i == 0:
-		image_display = gui.subplot.imshow(image_data[::-1])
-	else:
-		gui.display_image_data(image_display, image_data[::-1])
-
-	break
-	time.sleep(3)
-
-
-'''
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
