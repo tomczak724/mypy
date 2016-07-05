@@ -20,10 +20,13 @@ mugshots = glob.glob('./data/mugshot*png')
 
 ###  Initializing interactive figure
 fig = pyplot.figure(figsize=(9.1875, 8.875))
+fig.set_facecolor('w')
 subplot = fig.add_subplot(111, label='subplot')
 fig.subplots_adjust(left=0., top=1., right=1., bottom=0.)
 subplot.xaxis.set_visible(0)
 subplot.yaxis.set_visible(0)
+for label in ['top', 'bottom', 'left', 'right']:
+	subplot.spines[label].set_linewidth(0)
 subplot.axhline(0, color='gray', lw=1.5)
 subplot.axis([-0.5, 1088.5, -180, 890.5])
 
