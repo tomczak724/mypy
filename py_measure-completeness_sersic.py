@@ -1,24 +1,127 @@
 
 ###  This script is designed to take an image and estimate
-###  a point source limiting magnitude by inserting fake
-###  point sources and attempting to recover them using the
-###  the same SE parameters as for the images.
+###  a limiting magnitude by inserting fake sources and 
+###  attempting to recover them using the same SE parameters
+###  as for the images. The fake sources are a 2D sersic
+###  model of the given index n with r_eff ~ 5kpc at z=0.6-1.2
 ###
 ###  python py_measure-completeness.py /Users/atomczak/DATA/ORELSE/data_sg0023/noBackground_B.fits
 ###                                    /Users/atomczak/DATA/ORELSE/data_sg0023/Cl_0023+0423_tomczak_B_wht.fits
 ###                                    /Users/atomczak/DATA/ORELSE/data_sg0023/segmentation_B.fits
 ###                                    /Users/atomczak/DATA/ORELSE/data_sg0023/psf_B.fits
+###                                    2.5
 ###                                    25.0
+###       INPUTS:
+###  (1) background subtracted image
+###  (2) weight map
+###  (3) segmentation map
+###  (4) PSF image
+###  (5) sersic index
+###  (6) photometric zeropoint
+
 
 import os
 import sys
 import mypy
 import pylab
 import subprocess
-from astropy import wcs
-from scipy import ndimage
+from astropy import wcs, modeling, cosmology, units
+import scipy
+from scipy import ndimage, signal
 from astropy.io import fits
 from photutils import CircularAperture, aperture_photometry
+
+cosmo = cosmology.FlatLambdaCDM(Om0=0.3, H0=70)
+
+class Sersic2D(modeling.Fittable2DModel):
+    """
+    Two dimensional Sersic surface brightness profile.
+    Parameters
+    ----------
+    amplitude : float
+        Central surface brightness, within r_eff.
+    r_eff : float
+        Effective (half-light) radius
+    n : float
+        Sersic Index.
+    x_0 : float, optional
+        x position of the center.
+    y_0 : float, optional
+        y position of the center.
+    ellip : float, optional
+        Ellipticity.
+    theta : float, optional
+        Rotation angle in radians, counterclockwise from
+        the positive x-axis.
+    See Also
+    --------
+    Gaussian2D, Moffat2D
+    Notes
+    -----
+    Model formula:
+    .. math::
+        I(x,y) = I(r) = I_e\exp\left[-b_n\left(\frac{r}{r_{e}}\right)^{(1/n)}-1\right]
+    The constant :math:`b_n` is defined such that :math:`r_e` contains half the total
+    luminosity, and can be solved for numerically.
+    .. math::
+        \Gamma(2n) = 2\gamma (b_n,2n)
+    Examples
+    --------
+    .. plot::
+        :include-source:
+        import numpy as np
+        from astropy.modeling.models import Sersic2D
+        import matplotlib.pyplot as plt
+        x,y = pylab.meshgrid(pylab.arange(100), pylab.arange(100))
+        mod = Sersic2D(amplitude = 1, r_eff = 25, n=4, x_0=50, y_0=50,
+                       ellip=.5, theta=-1)
+        img = mod(x, y)
+        log_img = pylab.log10(img)
+        plt.figure()
+        plt.imshow(log_img, origin='lower', interpolation='nearest',
+                   vmin=-1, vmax=2)
+        plt.xlabel('x')
+        plt.ylabel('y')
+        cbar = plt.colorbar()
+        cbar.set_label('Log Brightness', rotation=270, labelpad=25)
+        cbar.set_ticks([-1, 0, 1, 2], update_ticks=True)
+        plt.show()
+    References
+    ----------
+    .. [1] http://ned.ipac.caltech.edu/level5/March05/Graham/Graham2.html
+    """
+
+    amplitude = modeling.Parameter(default=1)
+    r_eff = modeling.Parameter(default=1)
+    n = modeling.Parameter(default=4)
+    x_0 = modeling.Parameter(default=0)
+    y_0 = modeling.Parameter(default=0)
+    ellip = modeling.Parameter(default=0)
+    theta = modeling.Parameter(default=0)
+    _gammaincinv = None
+
+    @classmethod
+    def evaluate(cls, x, y, amplitude, r_eff, n, x_0, y_0, ellip, theta):
+        """Two dimensional Sersic profile function."""
+
+        if cls._gammaincinv is None:
+            try:
+                from scipy.special import gammaincinv
+                cls._gammaincinv = gammaincinv
+            except ValueError:
+                raise ImportError('Sersic2D model requires scipy > 0.11.')
+
+        bn = cls._gammaincinv(2. * n, 0.5)
+        a, b = r_eff, (1 - ellip) * r_eff
+        cos_theta, sin_theta = pylab.cos(theta), pylab.sin(theta)
+        x_maj = (x - x_0) * cos_theta + (y - y_0) * sin_theta
+        x_min = -(x - x_0) * sin_theta + (y - y_0) * cos_theta
+        z = pylab.sqrt((x_maj / a) ** 2 + (x_min / b) ** 2)
+
+        return amplitude * pylab.exp(-bn * (z ** (1 / n) - 1))
+
+
+
 
 
 ###  Inputs
@@ -33,8 +136,34 @@ imwcs = wcs.WCS(imname)
 whtdat = fits.getdata(whtname)
 segdat = fits.getdata(segname)
 psfdat = fits.getdata(psfname)
-zp = float(sys.argv[5])
+sersic_index = float(sys.argv[5])
+zp = float(sys.argv[6])
 print 'done!'
+
+
+###  creating 2D sersic model
+psf_pxscale = 0.2
+
+xcen, ycen = pylab.array(imdat.shape) / 2
+ra1, dec1 = imwcs.all_pix2world([xcen], [ycen], 1)
+ra2, dec2 = imwcs.all_pix2world([xcen+1], [ycen], 1)
+imdat_pxscale = mypy.radec_sep(ra1[0], dec1[0], ra2[0], dec2[0])
+
+###  5kpc effective radius
+r_eff = cosmo.arcsec_per_kpc_proper(0.9) * (5 * units.kpc)
+r_eff = (r_eff / (imdat_pxscale * units.arcsec)).value
+
+psf_width, psf_height = psfdat.shape
+xgrid, ygrid = pylab.meshgrid(range(psf_width), range(psf_height))
+sersic_model = Sersic2D(amplitude=1., r_eff=r_eff, n=sersic_index, 
+	                    x_0=psf_width/2, y_0=psf_height/2,
+	                    ellip=0., theta=0.)
+
+sersic_model_conv = signal.convolve2d(sersic_model(xgrid, ygrid), psfdat, mode='same')
+sersic_model_conv /= sersic_model_conv.sum()
+
+fits.writeto('./psfs/sersic_n%.1f_%s' % (sersic_index, os.path.basename(imname)), sersic_model_conv)
+print '\nwrote to ./psfs/sersic_n%.1f_%s' % (sersic_index, os.path.basename(imname))
 
 
 
@@ -113,7 +242,7 @@ except:
 	###  estimate aperture flux noise in positions with (1) positive weight adn (2) not near an existing object
 	noise_estimate = mypy.nmad(phot_dat['aperture_sum'][inds])
 
-	outer = open('./catalogs/sky-positions_%s.cat' % (os.path.basename(imname)[:-5]), 'w')
+	outer = open('./catalogs/sky-positions_sersic_n%.1f_%s.cat' % (sersic_index, os.path.basename(imname)[:-5]), 'w')
 	outer.write('# id x y flux_aper\n')
 	for ind in inds:
 		outer.write('%i' % ind)
@@ -141,7 +270,8 @@ frac_completeness = []
 for si, scale_factor in enumerate(scale_factors):
 
 	mock_imdat = imdat * 1.
-	mock_obj = (psfdat_zoom/psfdat_zoom.sum()) * (scale_factor*noise_estimate)
+	#mock_obj = (psfdat_zoom/psfdat_zoom.sum()) * (scale_factor*noise_estimate)
+	mock_obj = (sersic_model_conv/sersic_model_conv.sum()) * (scale_factor*noise_estimate)
 
 	mag_mock_obj = zp - 2.5 * pylab.log10(mock_obj.sum())
 	magnitudes.append(mag_mock_obj)
@@ -205,7 +335,7 @@ for si, scale_factor in enumerate(scale_factors):
 
 
 ###  writing complenetess curve to text file
-outer = open('./catalogs/completeness_%s.cat' % (os.path.basename(imname)[:-5]), 'w')
+outer = open('./catalogs/completeness_sersic_n%.1f_%s.cat' % (sersic_index, os.path.basename(imname)[:-5]), 'w')
 outer.write('# magnitude frac_completeness\n')
 for mi, fi in zip(magnitudes, frac_completeness):
 	outer.write('%.3f  %.4f\n' % (mi, fi))
