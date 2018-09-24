@@ -105,8 +105,8 @@ def dec(d, amin=None, asec=None):
         d = int(abs(d))
         amin = int((abs(d) - d) * 60)
         asec = ((abs(d) - d) * 60 - amin) * 60
-        if deg < 0: Dec = (-d, amin, asec
-        if deg >= 0: Dec = (d, amin, asec
+        if deg < 0: Dec = (-d, amin, asec)
+        if deg >= 0: Dec = (d, amin, asec)
 
     return Dec
 
